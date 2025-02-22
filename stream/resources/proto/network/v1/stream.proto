@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package network.v1;
+
+import "packet/v1/packet.proto";
+
+option go_package = "github.com/raiich/socket-pb/stream/generated/go/network/v1";
+
+message ClientStream {
+  uint32 format_version = 1; // 0x0801
+  packet.v1.ClientHandshake handshake = 2;
+  repeated packet.v1.Packet packet = 3;
+  packet.v1.ConnectionClose close = 4;
+}
+
+message ServerStream {
+  uint32 format_version = 1; // 0x0801
+  packet.v1.ServerHandshake handshake = 2;
+  repeated packet.v1.Packet packet = 3;
+  packet.v1.ConnectionClose close = 4;
+}

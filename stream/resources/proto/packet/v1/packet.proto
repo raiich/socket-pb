@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package packet.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/raiich/socket-pb/stream/generated/go/packet/v1";
+
+message ClientHandshake {
+  uint32 protocol_version = 1;
+  bytes auth_token = 2;
+  map<string, bytes> extra_params = 3;
+  optional uint32 payload_ack_no = 4;
+  uint32 reconnect = 5;
+  google.protobuf.Timestamp now = 6;
+  string namespace = 7;
+}
+
+message ServerHandshake {
+  uint32 protocol_version = 1;
+  HandshakeStatus status = 2;
+  Settings settings = 3;
+  optional uint32 payload_ack_no = 4;
+  string message = 5;
+}
+
+message Settings {
+  google.protobuf.Duration ping_interval = 1;
+  google.protobuf.Duration ping_timeout = 2;
+}
+
+enum HandshakeStatus {
+  OK = 0;
+  RETRY_LATER = 1;
+  UNACCEPTED = 2;
+}
+
+message Packet {
+  optional uint64 sender_timestamp = 1;
+  optional uint64 receiver_timestamp = 2;
+  optional bytes ping = 3;
+  optional bytes pong = 4;
+  optional uint32 payload_ack_no = 5;
+  optional uint32 payload_seq_no = 6;
+  repeated bytes payload = 7;
+  repeated bytes volatile_payload = 8;
+  optional bytes new_auth_token = 9;
+}
+
+message ConnectionClose {
+  CloseReason reason = 1;
+  string message = 2;
+}
+
+enum CloseReason {
+  NO_ERROR = 0;
+  REPLACED = 1;
+  INVALID_STATE = 2;
+  UNKNOWN = 8;
+  ALERT = 9;
+}
