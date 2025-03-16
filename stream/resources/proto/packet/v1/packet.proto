@@ -23,6 +23,7 @@ message ServerHandshake {
   Settings settings = 3;
   optional uint32 payload_ack_no = 4;
   string message = 5;
+  map<string, bytes> extra_params = 6;
 }
 
 message Settings {
@@ -57,6 +58,8 @@ enum CloseReason {
   NO_ERROR = 0;
   REPLACED = 1;
   INVALID_STATE = 2;
+  CLOSED_BY_APP = 3;
+  TIMEOUT = 4;
   UNKNOWN = 8;
   ALERT = 9;
 }
