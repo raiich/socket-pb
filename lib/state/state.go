@@ -19,22 +19,21 @@ func (m *CurrentState[S]) Get() S {
 	return m.current
 }
 
-func (m *CurrentState[S]) Set(next S) error {
+func (m *CurrentState[S]) Set(next S) {
 	if m.timer != nil {
 		_ = m.timer.Stop()
 		m.timer = nil
 	}
 	m.current = next
-	return nil
 }
 
-func (m *CurrentState[S]) SetAfter(dispatcher Dispatcher, d time.Duration, next func() S) error {
+func (m *CurrentState[S]) AfterFunc(dispatcher Dispatcher, d time.Duration, f func()) error {
 	if m.timer != nil {
 		return fmt.Errorf("timer already set")
 	}
 	m.timer = dispatcher.AfterFunc(d, func() {
 		m.timer = nil
-		m.current = next()
+		f()
 	})
 	return nil
 }

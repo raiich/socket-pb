@@ -54,24 +54,17 @@ func (w *Queue[T]) closeByErr(reason error) error {
 
 // Dequeue returns the next element in the queue.
 // If the queue is empty, it will block until an element is available.
-// If ctx is done, it will return an error.
 // If Queue.Close is called, it will return ErrClosedQueue as error value.
-func (w *Queue[T]) Dequeue(ctx context.Context) (T, error) {
+func (w *Queue[T]) Dequeue() (T, error) {
 	select {
 	case <-w.ctx.Done():
 		var zero T
 		return zero, context.Cause(w.ctx)
-	case <-ctx.Done():
-		var zero T
-		return zero, context.Cause(ctx)
 	default:
 		select {
 		case <-w.ctx.Done():
 			var zero T
 			return zero, context.Cause(w.ctx)
-		case <-ctx.Done():
-			var zero T
-			return zero, context.Cause(ctx)
 		case elem := <-w.queue:
 			return elem, nil
 		}

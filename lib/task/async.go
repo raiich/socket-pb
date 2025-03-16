@@ -24,16 +24,20 @@ func (d *AsyncDispatcher) Context() context.Context {
 	return d.queue.ctx
 }
 
+func (d *AsyncDispatcher) Launch() error {
+	return d.Run()
+}
+
 // Run execute Task in Run loop.
 // Call Stop or StopByError to exit Run.
-func (d *AsyncDispatcher) Run(ctx context.Context) error {
+func (d *AsyncDispatcher) Run() error {
 	if !d.started.CompareAndSwap(false, true) { // avoid multiple start
 		return fmt.Errorf("dispatcher already started")
 	}
 
 	defer func() { _ = d.StopByError(fmt.Errorf("dispatcher is finished")) }()
 	for {
-		task, err := d.queue.Dequeue(ctx)
+		task, err := d.queue.Dequeue()
 		if err != nil {
 			if errors.Is(err, ErrClosedQueue) {
 				// ErrClosedQueue is ok
@@ -62,6 +66,21 @@ func (d *AsyncDispatcher) StopByError(reason error) error {
 	return d.queue.closeByErr(reason)
 }
 
+// AfterFunc enqueues f to TaskQueue after specified duration.
+func (d *AsyncDispatcher) AfterFunc(duration time.Duration, f func()) Timer {
+	timer := &taskTimer{}
+	timer.timer = time.AfterFunc(duration, func() {
+		ctx, cancel := context.WithTimeout(d.queue.ctx, defaultEnqueueTimeout)
+		defer cancel()
+
+		// enqueue task to execute f in same goroutine with Run loop
+		d.InvokeFunc(ctx, func() {
+			timer.tryFire(f)
+		})
+	})
+	return timer
+}
+
 // InvokeFunc enqueues f to TaskQueue.
 func (d *AsyncDispatcher) InvokeFunc(ctx context.Context, f func()) {
 	err := d.queue.Enqueue(ctx, f)
@@ -70,19 +89,18 @@ func (d *AsyncDispatcher) InvokeFunc(ctx context.Context, f func()) {
 	}
 }
 
-// AfterFunc enqueues f to TaskQueue after specified duration.
-func (d *AsyncDispatcher) AfterFunc(duration time.Duration, f func()) Timer {
-	timer := &noMutexTimer{}
-	timer.timer = time.AfterFunc(duration, func() {
-		ctx, cancel := context.WithTimeout(d.queue.ctx, defaultEnqueueTimeout)
-		defer cancel()
-
-		// enqueue task to execute f in same goroutine with RunLoop
-		d.InvokeFunc(ctx, func() {
-			timer.tryFire(f)
-		})
+func (d *AsyncDispatcher) InvokeSync(ctx context.Context, f func()) error {
+	done := make(chan struct{})
+	d.InvokeFunc(ctx, func() {
+		defer close(done)
+		f()
 	})
-	return timer
+	select {
+	case <-ctx.Done():
+		return context.Cause(ctx)
+	case <-done:
+		return nil
+	}
 }
 
 func NewAsyncDispatcher(parent context.Context) *AsyncDispatcher {
@@ -94,33 +112,4 @@ func NewAsyncDispatcher(parent context.Context) *AsyncDispatcher {
 			cancel: cancel,
 		},
 	}
-}
-
-type noMutexTimer struct {
-	// finished is updated and referenced in the goroutine of AsyncDispatcher.Run, so no mutex is used.
-	finished bool
-	timer    *time.Timer
-}
-
-// tryFire executes Task if noMutexTimer.Stop is not called.
-// If noMutexTimer.Stop is called immediately before time.AfterFunc is fired, Task will not be executed.
-func (t *noMutexTimer) tryFire(task Task) {
-	if !t.finished {
-		// !finished => timer fire is valid => callable
-
-		// Although such code is unlikely to be written in practice,
-		// but `finished = true` is set before calling `f()`
-		// to avoid the possibility that `timer.Stop()` is called inside `f()` and returns `true`.
-		t.finished = true
-		task.Exec()
-	}
-}
-
-func (t *noMutexTimer) Stop() bool {
-	if t.finished {
-		return false
-	}
-	t.finished = true
-	_ = t.timer.Stop()
-	return true
 }
