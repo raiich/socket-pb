@@ -8,6 +8,7 @@ import (
 
 	"github.com/raiich/socket-pb/lib/log"
 	"github.com/raiich/socket-pb/lib/must"
+	"github.com/raiich/socket-pb/stream"
 	"github.com/raiich/socket-pb/stream/tcp"
 )
 
@@ -30,13 +31,13 @@ func main() {
 	go func() {
 		defer wg.Done()
 		conn := must.Must(lis.Accept())
-		handle(conn)
+		handle(stream.New(conn))
 	}()
 	wg.Wait()
 }
 
-func handle(conn *tcp.Conn) {
-	must.Must(io.Copy(conn, conn))
+func handle(st *stream.Stream) {
+	must.Must(io.Copy(st, st))
 }
 
 func logOnError(err error, args ...any) {
