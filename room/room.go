@@ -8,7 +8,6 @@ import (
 
 	"github.com/raiich/socket-pb/internal/log"
 	"github.com/raiich/socket-pb/lib/task"
-	"github.com/raiich/socket-pb/stream"
 )
 
 type ID string
@@ -20,7 +19,6 @@ type Room struct {
 	Dispatcher Dispatcher
 	Parent     *Manager
 	Clients    map[ClientID]Client
-	Handler    Handler
 	currentID  ClientID
 }
 
@@ -41,10 +39,6 @@ func (r *Room) Kick(ctx context.Context, cid ClientID) error {
 	delete(r.Clients, cid)
 	c.StartShutdown(ctx)
 	return nil
-}
-
-type Handler interface {
-	OnPayload(clientID ClientID, payload *stream.Payload)
 }
 
 type Manager struct {
