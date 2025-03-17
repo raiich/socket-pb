@@ -44,8 +44,7 @@ message Packet {
   optional bytes pong = 4;
   optional uint32 payload_ack_no = 5;
   optional uint32 payload_seq_no = 6;
-  repeated bytes payload = 7;
-  repeated bytes volatile_payload = 8;
+  optional bytes payload = 7;
   optional bytes new_auth_token = 9;
 }
 
